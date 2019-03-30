@@ -32,7 +32,7 @@ def alert_if_needed(printer):
 
     pause_print = printer.action_on_failure == Printer.PAUSE
     if pause_print:
-        printer.pause_print_on_failure()
+        printer.pause_print()
 
     send_failure_alert(printer, pause_print)
 

@@ -10,6 +10,7 @@ from simple_history.models import HistoricalRecords
 from safedelete.models import SafeDeleteModel
 import os
 import json
+from datetime import timedelta
 
 from lib import redis
 from lib.utils import dict_or_none
@@ -89,6 +90,8 @@ class Printer(SafeDeleteModel):
     )
     tools_off_on_pause = models.BooleanField(default=True)
     bed_off_on_pause = models.BooleanField(default=False)
+    retract_on_pause = models.FloatField(null=False, default=6.5)
+    lift_z_on_pause = models.FloatField(null=False, default=2.5)
     detective_sensitivity = models.FloatField(null=False, default=1.0)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -155,14 +158,31 @@ class Printer(SafeDeleteModel):
             self.current_print_alerted_at = None   # reset current_print_alerted_at so that further alerts won't be surpressed.
         self.save()
 
+        # TODO: find a more elegant way to prevent rage clicking
+        last_commands = self.printercommand_set.order_by('-id')[:1]
+        if len(last_commands) > 0 and last_commands[0].created_at > timezone.now() - timedelta(seconds=60):
+            return
+
+        # TODO: remove me after 0.4.0 is not in use
         self.queue_octoprint_command('restore_temps')
+
         self.queue_octoprint_command('resume', abort_existing=False)
 
     def pause_print(self):
-        self.queue_octoprint_command('pause')
 
-    def pause_print_on_failure(self):
-        self.queue_octoprint_command('pause')
+        # TODO: find a more elegant way to prevent rage clicking
+        last_commands = self.printercommand_set.order_by('-id')[:1]
+        if len(last_commands) > 0 and last_commands[0].created_at > timezone.now() - timedelta(seconds=60):
+            return
+
+        args = {'retract': self.retract_on_pause, 'lift_z': self.lift_z_on_pause}
+        if self.tools_off_on_pause:
+            args['tools_off'] = True
+        if self.bed_off_on_pause:
+            args['bed_off'] = True
+        self.queue_octoprint_command('pause', args=args)
+
+        # TODO: remove me after 0.4.0 is not in use
         if self.tools_off_on_pause:
             self.queue_octoprint_command('set_temps', args={'heater': 'tools', 'target': 0, 'save': True}, abort_existing=False)
         if self.bed_off_on_pause:

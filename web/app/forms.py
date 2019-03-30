@@ -8,7 +8,7 @@ from .models import *
 class PrinterForm(ModelForm):
     class Meta:
         model = Printer
-        fields = ['name', 'action_on_failure', 'tools_off_on_pause', 'bed_off_on_pause', 'detective_sensitivity']
+        fields = ['name', 'action_on_failure', 'tools_off_on_pause', 'bed_off_on_pause', 'detective_sensitivity', 'retract_on_pause', 'lift_z_on_pause']
         widgets = {
             'action_on_failure': CustomRadioSelectWidget(choices=Printer.ACTION_ON_FAILURE),
         }
@@ -21,21 +21,21 @@ class UserPrefernecesForm(ModelForm):
 ### Phone verification ##
 
 class PhoneVerificationForm(Form):
-    country_code = CharField(max_length=3, widget=PhoneCountryCodeWidget())
+    phone_country_code = CharField(max_length=5, widget=PhoneCountryCodeWidget())
     phone_number = CharField(max_length=12)
     via = ChoiceField(
         choices=[('sms', 'Text me (SMS)'), ('call', 'Call me')],
         widget=CustomRadioSelectWidget())
 
-    def clean_country_code(self):
-        country_code = self.cleaned_data['country_code']
-        if not country_code.startswith('+'):
-            country_code = '+' + country_code
-        return country_code
+    def clean_phone_country_code(self):
+        phone_country_code = self.cleaned_data['phone_country_code']
+        if not phone_country_code.startswith('+'):
+            phone_country_code = '+' + phone_country_code
+        return phone_country_code
 
     def clean(self):
         data = self.cleaned_data
-        phone_number = data['country_code'] + data['phone_number']
+        phone_number = data['phone_country_code'] + data['phone_number']
         try:
             phone_number = phonenumbers.parse(phone_number, None)
             if not phonenumbers.is_valid_number(phone_number):

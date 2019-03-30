@@ -17,13 +17,13 @@
         {% csrf_token %}
         {% with WIDGET_ERROR_CLASS='field_error' WIDGET_REQUIRED_CLASS='field_required' %}
 
-        {{ form.country_code.errors }}
+        {{ form.phone_country_code.errors }}
         {{ form.phone_number.errors }}
         {{ form.via.errors }}
 
         <div class="form-group row">
           <div class="col-sm-3">
-            {% render_field form.country_code class="form-control" %}
+            {% render_field form.phone_country_code class="form-control" %}
           </div>
           <div class="col-sm-9">
             {% render_field form.phone_number class="form-control" placeholder="Phone Number" %}
@@ -39,6 +39,11 @@
         <a href="{% url 'printers' %}"class="btn btn-secondary btn-block">Skip phone number for now</a>
         {% endwith %}
       </form>
+      <br />
+      <small class="text-muted">
+        <div>Can't find your country code?</div>
+        <div>The Spaghetti Detective Team is currently self-funded. Therefore we can't afford to open to countries with high SMS cost. We will add more countries once we find a cost-effective SMS solution, or secure sufficient funding.</div>
+      </div>
     </div>
   </div>
 </div>

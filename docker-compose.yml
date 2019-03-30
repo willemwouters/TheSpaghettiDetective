@@ -1,7 +1,6 @@
-version: '3.7'
+version: '2.4'
 
 x-web-defaults: &web-defaults
-  restart: unless-stopped
   build:
     context: web
   volumes:
@@ -43,6 +42,7 @@ services:
         FLASK_APP: 'server.py'
         # ML_API_TOKEN:
         # HAS_GPU: 'False'
+    command: bash -c "gunicorn --bind 0.0.0.0:3333 --workers 2 wsgi"
 
   web:
     <<: *web-defaults
@@ -51,7 +51,7 @@ services:
       - "3334:3334"
     depends_on:
       - ml_api
-    command: bash -c "python manage.py collectstatic --noinput -c && python manage.py migrate && newrelic-admin run-program gunicorn config.wsgi:application --workers 3 --bind 0.0.0.0:3334"
+    command: bash -c "python manage.py collectstatic --noinput -c && python manage.py migrate && python manage.py runserver 0.0.0.0:3334"
 
   tasks:
     <<: *web-defaults

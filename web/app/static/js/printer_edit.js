@@ -6,7 +6,7 @@ $(document).ready(function () {
         if (stepNumber === 0 && stepDirection === 'forward') {
             $("#printer_form").submit();
         }
-        if (stepNumber === 1 && stepDirection === 'forward') {
+        if (stepNumber === 2 && stepDirection === 'forward') {
             var printerId = $('.connection-step').data('printer-id');
             if (printerId) {
                 checkPrinterEvent(printerId);
@@ -28,7 +28,7 @@ $(document).ready(function () {
             dataType: 'json',
         })
             .done(function (printer) {
-                if (!_.isEmpty(printer.status)) {
+                if (!_.isEmpty(printer.status) || !_.isEmpty(printer.pic)) {
                     $('#connected').show();
                     $('#waiting').hide();
                 } else {
@@ -64,6 +64,38 @@ $(document).ready(function () {
     }
 
     $('#sensitivity').on('change', updateSensitivityHint);
-
     updateSensitivityHint();
+
+    if ($('#id_lift_z_on_pause').val() > 0) {
+        $('#lift-z-checkbox').prop('checked', true);
+    } else {
+        $('#id_lift_z_on_pause').prop('readonly', true);
+        $('#lift-z-checkbox').prop('checked', false);
+    }
+
+    if ($('#id_retract_on_pause').val() > 0) {
+        $('#retract-checkbox').prop('checked', true);
+    } else {
+        $('#id_retract_on_pause').prop('readonly', true);
+        $('#retract-checkbox').prop('checked', false);
+    }
+
+    $('#lift-z-checkbox').on('change', function() {
+        if ($(this).is(':checked')) {
+            $('#id_lift_z_on_pause').prop('readonly', false);
+        } else {
+            $('#id_lift_z_on_pause').prop('readonly', true);
+            $('#id_lift_z_on_pause').val(0);
+        }
+    });
+
+    $('#retract-checkbox').on('change', function() {
+        if ($(this).is(':checked')) {
+            $('#id_retract_on_pause').prop('readonly', false);
+        } else {
+            $('#id_retract_on_pause').prop('readonly', true);
+            $('#id_retract_on_pause').val(0);
+        }
+    });
+
 });

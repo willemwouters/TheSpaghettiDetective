@@ -8,6 +8,7 @@ from django.http import HttpResponse
 from django.contrib import messages
 from django.urls import reverse
 from django.conf import settings
+from django.http import Http404
 from authy.api import AuthyApiClient
 
 from .models import *
@@ -49,28 +50,29 @@ def printers(request):
     return render(request, 'printer_list.html', {'printers': printers})
 
 @login_required
-def new_printer(request):
-    form = PrinterForm(request.POST or None, request.FILES or None)
-    if request.method == "POST":
-        if form.is_valid():
-            printer = form.save(commit=False)
-            printer.user = request.user
-            printer.auth_token = hexlify(os.urandom(10)).decode()
-            printer.save()
-            return redirect('/printers/{}/#step-2'.format(printer.id))
-
-    return render(request, 'printer_wizard.html', {'form': form})
-
-@login_required
 def edit_printer(request, pk):
-    instance = get_printer_or_404(pk, request)
-    if request.method == "POST":
-        form = PrinterForm(request.POST or None, instance=instance)
-        if form.is_valid():
-            form.save()
-        return render(request, 'printer_wizard.html', {'form': form})
+    if pk == 'new':
+        printer = None
+        template = 'printer_wizard.html'
     else:
-        return render(request, 'printer_wizard.html', {'form': PrinterForm(instance=instance)})
+        printer = get_printer_or_404(int(pk), request)
+        template = 'printer_wizard.html' if request.GET.get('wizard', False) else 'printer_edit.html'
+
+    form = PrinterForm(request.POST or None, request.FILES or None, instance=printer)
+    if request.method == "POST":
+        if form.is_valid():
+            if pk == 'new':
+                printer = form.save(commit=False)
+                printer.user = request.user
+                printer.auth_token = hexlify(os.urandom(10)).decode()
+                form.save()
+                return redirect('/printers/{}/?wizard=True#step-2'.format(printer.id))
+            else:
+                form.save()
+                if not request.GET.get('wizard', False):
+                    messages.success(request, 'Printer settings have been updated successfully!')
+
+    return render(request, template, {'form': form})
 
 @login_required
 def delete_printer(request, pk=None):
@@ -110,10 +112,10 @@ def phone_verification(request):
         form = PhoneVerificationForm(request.POST)
         if form.is_valid():
             request.session['phone_number'] = form.cleaned_data['phone_number']
-            request.session['country_code'] = form.cleaned_data['country_code']
+            request.session['phone_country_code'] = form.cleaned_data['phone_country_code']
             authy_api.phones.verification_start(
                 form.cleaned_data['phone_number'],
-                form.cleaned_data['country_code'],
+                form.cleaned_data['phone_country_code'],
                 via=form.cleaned_data['via']
             )
             return redirect('phone_token_validation')
@@ -128,12 +130,12 @@ def phone_token_validation(request):
         if form.is_valid():
             verification = authy_api.phones.verification_check(
                 request.session['phone_number'],
-                request.session['country_code'],
+                request.session['phone_country_code'],
                 form.cleaned_data['token']
             )
             if verification.ok():
                 request.session['is_verified'] = True
-                request.user.phone_country_code = request.session['country_code']
+                request.user.phone_country_code = request.session['phone_country_code']
                 request.user.phone_number = request.session['phone_number']
                 request.user.save()
                 messages.success(request, 'Phone number has been verified successfully!')
@@ -164,7 +166,10 @@ def publictimelapse_list(request):
 # Was surprised to find there is no built-in way in django to serve uploaded files in both debug and production mode
 
 def serve_jpg_file(request, file_path):
-    with open(os.path.join(settings.MEDIA_ROOT, file_path), 'rb') as fh:
+    full_path = os.path.join(settings.MEDIA_ROOT, file_path)
+    if not os.path.exists(full_path):
+        raise Http404("Requested file does not exist")
+    with open(full_path, 'rb') as fh:
         return HttpResponse(fh, content_type='image/jpeg')
 
 
